@@ -417,3 +417,15 @@ textarea.paper { font-family: var(--font-en); font-size: 17px; line-height: 1.85
 .menu-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 4px; color: var(--ink); box-shadow: var(--shadow); }
 .menu-item .ico { color: var(--accent); }
 .menu-item small { color: var(--muted); font-size: .74rem; line-height: 1.4; }
+
+/* 会話ネタ */
+.pick-list { display: grid; gap: 6px; max-height: 340px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pick { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-s); cursor: pointer; }
+.pick:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.pick input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+.pick > span { display: grid; gap: 2px; min-width: 0; }
+.pick b { font-size: .86rem; }
+textarea.prompt-edit { font-family: var(--font-en); font-size: 14px; line-height: 1.55; background: var(--sunken); }
+.topic-row { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.topic-row:last-child { border-bottom: 0; }
+.topic-main { display: grid; gap: 1px; }

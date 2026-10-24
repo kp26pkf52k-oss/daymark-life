@@ -122,7 +122,7 @@
     while (s.has(d)) { n++; d = DM.addDays(d, -1); }
     return n;
   }
-  const englishDates = () => [...D().logs.filter((l) => l.cat === 'english').map((l) => l.date), ...D().enDiary.map((e) => e.date)];
+  const englishDates = () => [...D().logs.filter((l) => l.cat === 'english').map((l) => l.date), ...D().enDiary.map((e) => e.date), ...D().transcripts.map((e) => e.date)];
 
   // ---------- フレーズの間隔反復（ライトナー方式） ----------
   const INTERVALS = [1, 3, 7, 14, 30, 60];

@@ -201,6 +201,47 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   d = await data();
   ok(Object.keys(d.days[today].habits).length === 1 && d.days[today].restDay === true && d.days[today].good === '解析が進んだ', '習慣・休息日をチェックでき、振り返りの内容は消えない');
 
+  console.log('書き写し・会話ネタ');
+  await go('english?tab=transcript');
+  await page.fill('#tr_source', '教材A Unit 1');
+  await page.fill('#tr_text', 'Fatigue is associated with a decline in performance. Recovery takes time.');
+  await page.fill('#tr_memo', 'be associated with');
+  await page.fill('#tr_min', '20');
+  await page.click('[data-act="trSave"]');
+  await page.waitForTimeout(100);
+  d = await data();
+  ok(d.transcripts.length === 1 && d.transcripts[0].source === '教材A Unit 1', '書き写しを保存できる');
+  ok(d.logs.some((l) => l.transcriptId === d.transcripts[0].id && l.minutes === 20 && l.cat === 'english'), '書き写しの時間が英語の学習時間に連動する');
+  await page.locator('#tr_text').evaluate((el) => { const s = 'is associated with'; const i = el.value.indexOf(s); el.focus(); el.setSelectionRange(i, i + s.length); el.dispatchEvent(new Event('select')); });
+  await page.click('[data-act="trPhrase"]');
+  ok(await sheet().locator('[data-key="phrase"]').inputValue() === 'is associated with', '選択した表現を表現帳の入力欄に入れられる');
+  ok((await sheet().locator('[data-key="example"]').inputValue()).startsWith('Fatigue is associated'), '表現を含む1文が例文に入る');
+  await save();
+  ok((await data()).phrases.length === 2, '書き写しから表現を登録できる');
+  await page.fill('#tr_min', '');
+  await page.click('[data-act="trSave"]');
+  await page.waitForTimeout(100);
+  ok(!(await data()).logs.some((l) => l.transcriptId), '時間を消すと連動した学習時間も消える');
+  await page.click('[data-act="trTalk"]');
+  await page.waitForTimeout(150);
+  let prompt = await page.inputValue('#tk_prompt');
+  ok(prompt.includes('Fatigue is associated with a decline') && prompt.includes('教材A Unit 1'), '書き写しの英文が会話プロンプトに入る');
+  ok(prompt.includes('Today I analyzed data'), '英語日記も初期状態で選ばれる');
+  ok(prompt.includes('pitch count'), '苦手リストの表現が含まれる');
+  await page.locator('[data-pick^="ja:"]').check();
+  await page.waitForTimeout(100);
+  ok((await page.inputValue('#tk_prompt')).includes('My diary in Japanese'), '日本語の日記も素材に追加できる');
+  await page.selectOption('#tk_scene', '研究');
+  await page.waitForTimeout(100);
+  ok((await page.inputValue('#tk_prompt')).includes('sport science researcher from overseas'), '場面に応じた役割が入る');
+  await page.click('[data-act="tkSave"]');
+  await page.waitForTimeout(100);
+  ok((await data()).talkTopics.length === 1, 'ネタ帳に保存できる');
+  await page.click('[data-act="tkDone"]');
+  ok(await sheet().locator('[data-key="minutes"]').inputValue() === '15', '「練習した」から練習時間を記録できる');
+  await save();
+  ok((await data()).talkTopics[0].practicedAt, '練習済みの印がつく');
+
   console.log('分析');
   for (const p of ['4w', '12w', '6m']) {
     await go('analysis?p=' + p);
@@ -223,12 +264,12 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   const before = await data();
   await page.reload(); await page.waitForTimeout(150);
   const after = await data();
-  ok(after.logs.length === before.logs.length && after.logs.length === 3 && Object.keys(after.conditions).length === 1, '再読み込み後も記録が残る');
+  ok(after.logs.length === before.logs.length && after.logs.length === 4 && Object.keys(after.conditions).length === 1, '再読み込み後も記録が残る');
   await go('settings');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="exportJSON"]')]);
   const file = path.join(os.tmpdir(), 'daymark-e2e.json');
   await dl.saveAs(file);
-  ok(JSON.parse(fs.readFileSync(file, 'utf8')).data.logs.length === 3, 'JSONで書き出せる');
+  ok(JSON.parse(fs.readFileSync(file, 'utf8')).data.logs.length === 4, 'JSONで書き出せる');
   await page.click('[data-act="resetAll"]');
   await sheet().locator('[data-yes]').click();
   await sheet().locator('[data-yes]').click();
@@ -239,10 +280,10 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   await sheet().locator('[data-yes]').click();
   await page.waitForTimeout(150);
   d = await data();
-  ok(d.logs.length === 3 && d.enDiary.length === 1 && d.settings.categories.find((x) => x.id === 'life').name === '生活', '書き出したファイルから復元できる');
+  ok(d.logs.length === 4 && d.transcripts.length === 1 && d.talkTopics.length === 1 && d.enDiary.length === 1 && d.settings.categories.find((x) => x.id === 'life').name === '生活', '書き出したファイルから復元できる');
 
   console.log('全ページ表示（PC幅を含む）');
-  const routes = ['home', 'calendar', 'calendar?v=week', 'calendar?v=month', 'calendar?v=tasks', 'english', 'english?tab=logs', 'english?tab=diary', 'english?tab=phrases', 'english?tab=review', 'english?tab=talk',
+  const routes = ['home', 'calendar', 'calendar?v=week', 'calendar?v=month', 'calendar?v=tasks', 'english', 'english?tab=logs', 'english?tab=diary', 'english?tab=transcript', 'english?tab=phrases', 'english?tab=review', 'english?tab=talk',
     'research', 'research?tab=projects', 'research?tab=tasks', 'research?tab=logs', 'research?tab=weekly', 'condition', 'exercise', 'analysis', 'goals', 'settings', 'menu'];
   for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 860 }]) {
     await page.setViewportSize(vp);

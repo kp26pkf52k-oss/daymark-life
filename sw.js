@@ -3,11 +3,11 @@
  * そのため、ファイルを更新して公開すれば、次に開いたときに新しい版が表示される。
  * ファイルを追加・改名したら ASSETS を更新し、CACHE の番号を上げる。
  */
-const CACHE = 'daymark-v1.0.0';
+const CACHE = 'daymark-v1.1.0';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/util.js', 'js/store.js', 'js/model.js', 'js/charts.js', 'js/ui.js', 'js/forms.js', 'js/app.js',
-  'js/views/home.js', 'js/views/calendar.js', 'js/views/english.js', 'js/views/research.js', 'js/views/condition.js',
+  'js/views/home.js', 'js/views/calendar.js', 'js/views/english.js', 'js/views/english-talk.js', 'js/views/research.js', 'js/views/condition.js',
   'js/views/exercise.js', 'js/views/analysis.js', 'js/views/goals.js', 'js/views/settings.js',
   'icons/icon.svg', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];

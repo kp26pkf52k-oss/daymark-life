@@ -56,10 +56,11 @@
       </section>
       <div class="btn-row"><button type="button" class="btn primary" data-act="addLog" data-cat="english">＋ 学習時間を記録</button>
         <button type="button" class="btn" data-act="go" data-view="english" data-params='{"tab":"diary"}'>英語日記を書く</button>
+        <button type="button" class="btn" data-act="go" data-view="english" data-params='{"tab":"transcript"}'>書き写し</button>
         <button type="button" class="btn" data-act="go" data-view="english" data-params='{"tab":"talk"}'>会話練習</button></div>
       <section class="card"><h2>週ごとの学習時間（技能別）</h2>
         ${series.length ? DM.charts.place({ type: 'bar', labels: weeks.map(DM.fmtShort), tipLabels: weeks.map((w) => `${DM.fmtShort(w)}〜の週`), series, unit: '時間', fmt: (v) => DM.fmtMin(v * 60), height: 190, label: '週ごとの英語学習時間' }) : DM.empty('まだ学習時間の記録がありません。')}
-        <p class="f-hint">日付は各週の月曜日。学習継続日数には、学習時間の記録と英語日記の両方を含めています。</p></section>
+        <p class="f-hint">日付は各週の月曜日。学習継続日数には、学習時間の記録・英語日記・書き写しを含めています。</p></section>
       ${scenes.length ? `<section class="card"><h2>学習した場面の内訳（全期間）</h2>
         ${DM.charts.place({ type: 'share', parts: scenes.map((s, i) => ({ name: s, color: SERIES[i % SERIES.length], value: sceneMin[s] })), fmt: DM.fmtMin, height: 22, legend: false })}
         <div class="legend">${scenes.map((s, i) => `<span><i style="background:${SERIES[i % SERIES.length]}"></i>${esc(s)} ${DM.fmtMin(sceneMin[s])}</span>`).join('')}</div></section>` : ''}`;
@@ -200,7 +201,7 @@
     const sc = p.sc || '';
     const prompts = S().prompts.filter((x) => !sc || x.scene === sc);
     return `<section class="card">
-      <h2>ChatGPTの音声会話で練習する</h2>
+      <h2>決まった場面で練習する</h2>
       <ol class="steps">
         <li>練習したいプロンプトの「コピー」を押す。</li>
         <li>「ChatGPTを開く」を押す（iPhoneではChatGPTアプリが入っていればアプリで開くことがあります）。</li>
@@ -249,17 +250,19 @@
   DM.actions.promptAdd = () => editPrompt();
   DM.actions.promptEdit = (el) => editPrompt(S().prompts.find((x) => x.id === el.dataset.id));
 
-  const TABS = [['overview', '概要'], ['logs', '記録'], ['diary', '英語日記'], ['phrases', '表現・単語'], ['review', '復習'], ['talk', '会話練習']];
+  const TABS = [['overview', '概要'], ['logs', '記録'], ['diary', '英語日記'], ['transcript', '書き写し'], ['phrases', '表現・単語'], ['review', '復習'], ['talk', '会話練習']];
   DM.views.english = {
     title: '英語',
     render(p) {
       const tab = p.tab || 'overview';
       const due = M.duePhrases().length;
       const tabs = TABS.map(([v, l]) => [v, v === 'review' && due ? `${l} ${due}` : l]);
-      const body = { overview, logs: logsTab, diary: diaryTab, phrases: phrasesTab, review: reviewTab, talk: talkTab }[tab] || overview;
+      const body = { overview, logs: logsTab, diary: diaryTab, transcript: DM.enTranscriptTab, phrases: phrasesTab, review: reviewTab, talk: (q) => DM.enTalkBuilder() + talkTab(q) }[tab] || overview;
       return `${DM.seg('tab', tabs, tab)}${body(p)}`;
     },
     after(root) {
+      DM.enTranscriptAfter(root);
+      DM.enTalkAfter(root);
       const ta = root.querySelector('#ed_text');
       if (!ta) return;
       const { params } = DM.route();
