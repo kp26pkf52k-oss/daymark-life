@@ -238,9 +238,44 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   await page.waitForTimeout(100);
   ok((await data()).talkTopics.length === 1, 'ネタ帳に保存できる');
   await page.click('[data-act="tkDone"]');
-  ok(await sheet().locator('[data-key="minutes"]').inputValue() === '15', '「練習した」から練習時間を記録できる');
-  await save();
-  ok((await data()).talkTopics[0].practicedAt, '練習済みの印がつく');
+  await page.waitForTimeout(100);
+  ok(page.url().includes('tab=talkeval') && (await data()).talkTopics[0].practicedAt, '「練習した」で練習済みになり評価の取り込み画面へ移る');
+
+  console.log('会話の評価');
+  await page.fill('#ev_paste', 'これは壊れた返答です { "topics": [ }');
+  await page.click('[data-act="evParse"]');
+  ok(await page.locator('#ev_err').isVisible(), '読み取れない返答にはエラーを表示する');
+  const report = (n) => 'Here is your evaluation:\n```json\n' + JSON.stringify({
+    topics: ['Pitching fatigue', 'Lab life'],
+    scores: { fluency: 3, accuracy: n, vocabulary: 3, interaction: 4 },
+    my_utterances: ['I watched a baseball game yesterday.', 'The starter threw 120 pitches and he was tired.', 'えっと, I think workload is important.'],
+    errors: [{ said: 'I went to lab', better: 'I went to the lab', type: 'article', explanation_ja: '特定の研究室なので the' }, { said: 'he throw', better: 'he threw', type: 'tense', explanation_ja: '過去形' }],
+    japanese_used: [{ ja: '投球数', en: 'pitch count' }, { ja: '疲労回復', en: 'recovery from fatigue' }],
+    expressions_to_learn: [{ phrase: 'keep track of', meaning_ja: '記録をつける', example: 'We keep track of pitch counts.' }],
+    good_points_ja: ['質問に文で答えられた'], next_focus_ja: ['冠詞'], summary_ja: '全体として意味は伝わった。',
+  }) + '\n```';
+  await page.fill('#ev_paste', report(2));
+  await page.click('[data-act="evParse"]');
+  ok((await page.textContent('.eval-preview')).includes('1回あたりの語数'), 'コードブロックつきの返答を読み取れる');
+  ok((await page.textContent('.eval-preview .mini-grid')).replace(/\s/g, '').includes('総語数19'), '自分の発話から総語数を計算する');
+  await page.fill('#ev_min', '15');
+  ok(await page.inputValue('#ev_topic') !== '', '練習したネタが選ばれた状態になる');
+  await page.click('[data-act="evSave"]');
+  await page.waitForTimeout(100);
+  d = await data();
+  ok(d.talkSessions.length === 1 && d.talkSessions[0].report.scores.accuracy === 2 && d.logs.some((l) => l.talkSessionId && l.minutes === 15), '評価を保存し、会話時間が学習時間として記録される');
+  ok((await page.textContent('#view')).includes('keep track of'), '覚える表現が提案される');
+  await page.click('[data-act="evAddAll"]');
+  d = await data();
+  ok(d.phrases.some((x) => x.phrase === 'keep track of' && !x.weak) && d.phrases.some((x) => x.phrase === 'recovery from fatigue' && x.weak), '提案をまとめて表現帳に追加でき、日本語で言った部分は苦手リストに入る');
+  await page.fill('#ev_paste', report(3));
+  await page.click('[data-act="evParse"]');
+  await page.click('[data-act="evSave"]');
+  await page.waitForTimeout(100);
+  ok(await page.locator('.chart svg path.line').count() >= 2, '2回目以降は推移のグラフが出る');
+  ok((await page.textContent('#view')).includes('対策の例'), '繰り返している誤りに対策の例を表示する');
+  await go('english?tab=talk');
+  ok((await page.inputValue('#tk_prompt')).includes('article, tense'), '繰り返した誤りの種類が次の会話プロンプトに入る');
 
   console.log('分析');
   for (const p of ['4w', '12w', '6m']) {
@@ -280,10 +315,10 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   await sheet().locator('[data-yes]').click();
   await page.waitForTimeout(150);
   d = await data();
-  ok(d.logs.length === 4 && d.transcripts.length === 1 && d.talkTopics.length === 1 && d.enDiary.length === 1 && d.settings.categories.find((x) => x.id === 'life').name === '生活', '書き出したファイルから復元できる');
+  ok(d.logs.length === 4 && d.talkSessions.length === 2 && d.transcripts.length === 1 && d.talkTopics.length === 1 && d.enDiary.length === 1 && d.settings.categories.find((x) => x.id === 'life').name === '生活', '書き出したファイルから復元できる');
 
   console.log('全ページ表示（PC幅を含む）');
-  const routes = ['home', 'calendar', 'calendar?v=week', 'calendar?v=month', 'calendar?v=tasks', 'english', 'english?tab=logs', 'english?tab=diary', 'english?tab=transcript', 'english?tab=phrases', 'english?tab=review', 'english?tab=talk',
+  const routes = ['home', 'calendar', 'calendar?v=week', 'calendar?v=month', 'calendar?v=tasks', 'english', 'english?tab=logs', 'english?tab=diary', 'english?tab=transcript', 'english?tab=phrases', 'english?tab=review', 'english?tab=talk', 'english?tab=talkeval',
     'research', 'research?tab=projects', 'research?tab=tasks', 'research?tab=logs', 'research?tab=weekly', 'condition', 'exercise', 'analysis', 'goals', 'settings', 'menu'];
   for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 860 }]) {
     await page.setViewportSize(vp);

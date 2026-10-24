@@ -41,6 +41,8 @@
 
   function axes(w, h, m, yMin, yMax, ticks, unit) {
     if (yMin === 0) { const ns = niceScale(yMax); if (Math.abs(ns.max - yMax) < 1e-9) ticks = ns.ticks; }
+    const span = yMax - yMin;
+    if (Number.isInteger(span) && span >= 2 && span <= 6) ticks = span; // 1〜5点などの小さな整数の目盛り
     let s = '';
     for (let i = 0; i <= ticks; i++) {
       const v = yMin + ((yMax - yMin) * i) / ticks;

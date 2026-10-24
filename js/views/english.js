@@ -250,14 +250,14 @@
   DM.actions.promptAdd = () => editPrompt();
   DM.actions.promptEdit = (el) => editPrompt(S().prompts.find((x) => x.id === el.dataset.id));
 
-  const TABS = [['overview', '概要'], ['logs', '記録'], ['diary', '英語日記'], ['transcript', '書き写し'], ['phrases', '表現・単語'], ['review', '復習'], ['talk', '会話練習']];
+  const TABS = [['overview', '概要'], ['logs', '記録'], ['diary', '英語日記'], ['transcript', '書き写し'], ['phrases', '表現・単語'], ['review', '復習'], ['talk', '会話練習'], ['talkeval', '会話の評価']];
   DM.views.english = {
     title: '英語',
     render(p) {
       const tab = p.tab || 'overview';
       const due = M.duePhrases().length;
       const tabs = TABS.map(([v, l]) => [v, v === 'review' && due ? `${l} ${due}` : l]);
-      const body = { overview, logs: logsTab, diary: diaryTab, transcript: DM.enTranscriptTab, phrases: phrasesTab, review: reviewTab, talk: (q) => DM.enTalkBuilder() + talkTab(q) }[tab] || overview;
+      const body = { overview, logs: logsTab, diary: diaryTab, transcript: DM.enTranscriptTab, phrases: phrasesTab, review: reviewTab, talk: (q) => DM.enTalkBuilder() + talkTab(q), talkeval: DM.enEvalTab }[tab] || overview;
       return `${DM.seg('tab', tabs, tab)}${body(p)}`;
     },
     after(root) {

@@ -6,7 +6,7 @@
   const KEY = 'daymark.data';
   const SNAP_KEY = 'daymark.snapshots';
   const SCHEMA = 1;
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.2.0';
 
   const DEFAULT_PROMPTS = [
     { id: 'p_daily', scene: '日常', title: '日常会話（ウォームアップ）', text:
@@ -93,6 +93,7 @@ Diary:
     enDiary: [],    // 英語日記 {id,date,text,corrected,memo,scene,createdAt,updatedAt}
     transcripts: [], // 書き写し {id,date,source,text,memo,minutes,skill,logId,createdAt,updatedAt}
     talkTopics: [],  // 会話ネタ（ChatGPT用プロンプト） {id,title,prompt,sources:[{type,id}],practicedAt,createdAt}
+    talkSessions: [], // 会話練習の評価 {id,date,topicId,minutes,logId,report:{topics,scores,utterances,errors,japaneseUsed,expressions,good,next,summary},createdAt}
     days: {},       // 日ごとの振り返り date -> {diary,good,improve,score,restDay,habits:{id:true}}
     conditions: {}, // date -> {physFatigue,mentalFatigue,stress,focus,motivation,mood,sleepQuality,bed,wake,sleepMin,note,recordedAt}
     weekly: {},     // 週の振り返り weekKey -> {good,improve,next,research,updatedAt}
@@ -108,7 +109,7 @@ Diary:
     const base = emptyData();
     for (const k of Object.keys(base)) if (d[k] == null) d[k] = base[k];
     for (const k of Object.keys(DEFAULT_SETTINGS)) if (d.settings[k] == null) d.settings[k] = structuredClone(DEFAULT_SETTINGS[k]);
-    for (const k of ['events', 'tasks', 'logs', 'projects', 'goals', 'phrases', 'enDiary', 'transcripts', 'talkTopics']) if (!Array.isArray(d[k])) d[k] = [];
+    for (const k of ['events', 'tasks', 'logs', 'projects', 'goals', 'phrases', 'enDiary', 'transcripts', 'talkTopics', 'talkSessions']) if (!Array.isArray(d[k])) d[k] = [];
     return d;
   }
 

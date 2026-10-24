@@ -429,3 +429,17 @@ textarea.prompt-edit { font-family: var(--font-en); font-size: 14px; line-height
 .topic-row { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .topic-row:last-child { border-bottom: 0; }
 .topic-main { display: grid; gap: 1px; }
+
+/* 会話の評価 */
+.score-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.score { background: var(--sunken); border-radius: 10px; padding: 8px 10px; display: grid; }
+.score span { font-size: .72rem; color: var(--muted); }
+.score b { font-size: 1.3rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.score small { font-size: .7rem; color: var(--muted); }
+.eval { display: grid; gap: 10px; }
+.eval-preview, .eval-open { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 12px; }
+.corr-list { display: grid; gap: 8px; margin-top: 4px; }
+.corr { border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 10px; display: grid; gap: 4px; justify-items: start; }
+.corr .from { color: var(--danger); }
+.corr .to { color: var(--good); font-weight: 600; }
+ol.utter { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; font-size: .9rem; }

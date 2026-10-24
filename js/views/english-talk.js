@@ -149,7 +149,8 @@
   // opt: {items:[material], minutes, scene, japanese:boolean, weak:boolean}
   DM.buildTalkPrompt = function (opt) {
     if (!opt.items.length) return '';
-    const weak = opt.weak ? DM.store.data.phrases.filter((p) => p.weak).slice(0, 8).map((p) => p.phrase) : [];
+    const focus = opt.reflect && DM.talkFocus ? DM.talkFocus() : null;
+    const weak = [...new Set([...(opt.weak ? DM.store.data.phrases.filter((p) => p.weak).slice(0, 8).map((p) => p.phrase) : []), ...(focus ? focus.exprs : [])])].slice(0, 10);
     const hasTr = opt.items.some((m) => m.type === 'tr');
     const hasDiary = opt.items.some((m) => m.type !== 'tr');
     const role = SCENE_ROLE[opt.scene] || (opt.scene ? `Setting: ${opt.scene}. Play a natural partner for this setting.` : 'Talk with me as a friendly conversation partner.');
@@ -160,6 +161,7 @@
       'Ask one question at a time. Keep your turns short (1 to 3 sentences) so that I speak more than you.',
       'If I make a mistake that makes my meaning unclear, briefly say a more natural version ("You could say: ...") and continue the conversation.',
       opt.japanese ? 'If I get stuck, I may say a word or phrase in Japanese. Tell me how to say it in English, and let me try the sentence again.' : 'Please speak only in English, even if I get stuck. Give me hints in simple English instead.',
+      focus && focus.typesEn.length ? `In my recent practice I often made these kinds of mistakes: ${focus.typesEn.join(', ')}. When I make one of them, point it out briefly and let me say the sentence again.` : '',
       weak.length ? `Try to create chances for me to use these expressions I am practicing: ${weak.map((w) => `"${w}"`).join(', ')}.` : '',
       `When I say "feedback", stop and give me: 3 useful expressions from today's topics, 2 mistakes I repeated with corrections, and a better version of one of my answers that I can read aloud.`,
     ].filter(Boolean);
@@ -178,7 +180,7 @@ ${opt.items.map(materialText).join('\n\n')}`;
   };
 
   // 画面上の選択状態（ページ内だけで保持）
-  const ui = { days: 7, picked: null, minutes: 15, scene: '', japanese: true, weak: true };
+  const ui = { days: 7, picked: null, minutes: 15, scene: '', japanese: true, weak: true, reflect: true };
 
   DM.enTalkBuilder = function () {
     const ms = materials(ui.days);
@@ -203,6 +205,7 @@ ${opt.items.map(materialText).join('\n\n')}`;
       </div>
       <label class="check"><input type="checkbox" id="tk_ja" ${ui.japanese ? 'checked' : ''}> 詰まったら日本語を混ぜてもよい</label>
       <label class="check"><input type="checkbox" id="tk_weak" ${ui.weak ? 'checked' : ''} ${weakN ? '' : 'disabled'}> 苦手リストの表現を使う機会を作ってもらう（${weakN}件）</label>
+      <label class="check"><input type="checkbox" id="tk_reflect" ${ui.reflect ? 'checked' : ''} ${DM.store.data.talkSessions.length ? '' : 'disabled'}> これまでの会話の評価（繰り返している誤り・覚えたい表現）を反映する（評価${DM.store.data.talkSessions.length}回分）</label>
       <label class="f-label" for="tk_prompt">できあがった指示文（直接書き換えてからコピーできます。上の選択を変えると作り直されます）</label>
       <textarea id="tk_prompt" class="prompt-edit" rows="12" spellcheck="false">${esc(prompt)}</textarea>
       <div class="btn-row">
@@ -210,13 +213,13 @@ ${opt.items.map(materialText).join('\n\n')}`;
         <a class="btn" href="${esc(S().chatgptUrl || 'https://chatgpt.com/')}" target="_blank" rel="noopener">ChatGPTを開く ↗</a>
         <button type="button" class="btn" data-act="tkSave" ${prompt ? '' : 'disabled'}>ネタ帳に保存</button>
       </div>
-      <p class="f-hint">使い方：コピー → ChatGPTを開く → 新しいチャットに貼り付けて送信 → 音声モードに切り替えて話す。素材の英文はそのままChatGPTに送られるので、他人の個人情報などが含まれていないか確認してから貼り付けてください。</p>
+      <p class="f-hint">使い方：コピー → ChatGPTを開く → 新しいチャットに貼り付けて送信 → 音声モードに切り替えて話す → 終わったら「会話の評価」タブで評価を取り込む。素材の英文はそのままChatGPTに送られるので、他人の個人情報などが含まれていないか確認してから貼り付けてください。</p>
     </section>
     <section class="card"><h2>ネタ帳 <span class="count">${saved.length}</span></h2>
       ${saved.length ? `<div class="log-list">${saved.map((t) => `<div class="topic-row">
         <div class="topic-main"><b>${esc(t.title)}</b><span class="f-hint">${DM.fmtDate(t.createdAt.slice(0, 10))} 作成${t.practicedAt ? `・${DM.fmtDate(t.practicedAt)} 練習済み` : ''}</span></div>
         <div class="btn-row"><button type="button" class="btn small primary" data-act="copy" data-text="${esc(t.prompt)}">コピー</button>
-          <button type="button" class="btn small" data-act="tkDone" data-id="${t.id}">練習した</button>
+          <button type="button" class="btn small" data-act="tkDone" data-id="${t.id}">練習した→評価へ</button>
           <button type="button" class="btn small danger ghost" data-act="tkDel" data-id="${t.id}">削除</button></div></div>`).join('')}</div>`
         : '<p class="muted">保存したネタはここに残り、あとで同じ指示文をコピーして練習できます。</p>'}
     </section>`;
@@ -230,6 +233,7 @@ ${opt.items.map(materialText).join('\n\n')}`;
     root.querySelector('#tk_scene').addEventListener('change', (e) => { ui.scene = e.target.value; rerender(); });
     root.querySelector('#tk_min').addEventListener('change', (e) => { ui.minutes = Number(e.target.value); rerender(); });
     root.querySelector('#tk_ja').addEventListener('change', (e) => { ui.japanese = e.target.checked; rerender(); });
+    root.querySelector('#tk_reflect').addEventListener('change', (e) => { ui.reflect = e.target.checked; rerender(); });
     root.querySelector('#tk_weak').addEventListener('change', (e) => { ui.weak = e.target.checked; rerender(); });
     root.querySelectorAll('[data-pick]').forEach((cb) => cb.addEventListener('change', () => {
       if (cb.checked) ui.picked.add(cb.dataset.pick); else ui.picked.delete(cb.dataset.pick);
@@ -254,9 +258,10 @@ ${opt.items.map(materialText).join('\n\n')}`;
     DM.store.upsert('talkTopics', { id: DM.uid('tk_'), title: (ui.scene ? `［${ui.scene}］` : '') + title, prompt, sources: ms.map((m) => ({ type: m.type, id: m.id })) });
     DM.toast('ネタ帳に保存しました');
   };
+  // 練習したら評価の取り込み画面へ（そこで時間も記録できる）
   DM.actions.tkDone = (el) => {
     DM.store.commit((d) => { const t = d.talkTopics.find((x) => x.id === el.dataset.id); if (t) t.practicedAt = DM.today(); });
-    DM.editLog({}, { cat: 'english', date: DM.today(), skill: 'スピーキング', minutes: ui.minutes });
+    DM.go('english', { tab: 'talkeval', topic: el.dataset.id });
   };
   DM.actions.tkDel = async (el) => {
     if (await DM.confirm('このネタを削除しますか？', { danger: true, ok: '削除' })) DM.removeWithUndo('talkTopics', el.dataset.id);
