@@ -6,7 +6,7 @@
   const KEY = 'daymark.data';
   const SNAP_KEY = 'daymark.snapshots';
   const SCHEMA = 1;
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.4.0';
 
   const DEFAULT_PROMPTS = [
     { id: 'p_daily', scene: '日常', title: '日常会話（ウォームアップ）', text:
@@ -98,7 +98,35 @@ Diary:
     days: {},       // 日ごとの振り返り date -> {diary,good,improve,score,restDay,habits:{id:true}}
     conditions: {}, // date -> {physFatigue,mentalFatigue,stress,focus,motivation,mood,sleepQuality,bed,wake,sleepMin,note,recordedAt}
     weekly: {},     // 週の振り返り weekKey -> {good,improve,next,research,updatedAt}
+    syncMeta: { tomb: {}, settingsAt: '' }, // 端末間同期用：削除の記録（"コレクション:id" -> 日時）と設定の更新日時
   });
+
+  // 端末間で同期する単位。配列は id、日付キーのものはキーごとに、更新日時（_mt）を比べて統合する。
+  const ARRAYS = ['events', 'tasks', 'logs', 'papers', 'projects', 'goals', 'phrases', 'enDiary', 'transcripts', 'talkTopics', 'talkSessions'];
+  const MAPS = ['days', 'conditions', 'weekly'];
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const strip = (x) => { if (!x || typeof x !== 'object') return JSON.stringify(x); const { _mt, ...r } = x; return JSON.stringify(r); };
+  // before → after で変わった記録に更新日時を付け、消えた記録を削除の記録（tomb）に残す
+  function stampChanges(before, after) {
+    const now = DM.nowISO();
+    const meta = after.syncMeta = after.syncMeta || { tomb: {}, settingsAt: '' };
+    const tomb = meta.tomb = { ...((before.syncMeta && before.syncMeta.tomb) || {}), ...(meta.tomb || {}) };
+    for (const k of ARRAYS) {
+      const prev = new Map((before[k] || []).map((x) => [x.id, strip(x)]));
+      const now_ = new Set();
+      for (const x of after[k] || []) {
+        now_.add(x.id);
+        if (prev.get(x.id) !== strip(x)) { x._mt = now; delete tomb[k + ':' + x.id]; }
+      }
+      for (const id of prev.keys()) if (!now_.has(id)) tomb[k + ':' + id] = now;
+    }
+    for (const k of MAPS) {
+      const b = before[k] || {}, a = after[k] || {};
+      for (const key of Object.keys(a)) if (strip(b[key]) !== strip(a[key])) { a[key]._mt = now; delete tomb[k + ':' + key]; }
+      for (const key of Object.keys(b)) if (!(key in a)) tomb[k + ':' + key] = now;
+    }
+    if (JSON.stringify(before.settings) !== JSON.stringify(after.settings)) meta.settingsAt = now;
+  }
 
   // 古いデータ構造を新しい構造へ変換する。キーは「変換前のschema番号」。
   const MIGRATIONS = {
@@ -169,7 +197,9 @@ Diary:
 
   // 変更はすべて commit() を通す。fn の中で data を書き換える。
   function commit(fn) {
+    const before = clone(data);
     fn(data);
+    stampChanges(before, data);
     save();
     for (const l of listeners) l();
   }
@@ -190,8 +220,18 @@ Diary:
     commit((d) => { d[col] = d[col].filter((x) => x.id !== id); });
     return before;
   }
+  // 元に戻す・控えからの復元：戻した結果も「変更」として記録し、同期先にも反映させる
   function restoreJSON(json) {
+    const before = clone(data);
     data = migrate(JSON.parse(json));
+    stampChanges(before, data);
+    save();
+    for (const l of listeners) l();
+  }
+
+  // 同期で統合した結果をそのまま保存する（変更の記録はしない）
+  function replaceMerged(d) {
+    data = migrate(d);
     save();
     for (const l of listeners) l();
   }
@@ -208,13 +248,17 @@ Diary:
   }
   function importData(d) {
     try { localStorage.setItem('daymark.beforeImport', JSON.stringify(data)); } catch { /* ignore */ }
+    const before = clone(data);
     data = d;
+    stampChanges(before, data);
     save();
     for (const l of listeners) l();
   }
   function resetAll() {
     try { localStorage.setItem('daymark.beforeImport', JSON.stringify(data)); } catch { /* ignore */ }
+    const before = clone(data);
     data = emptyData();
+    stampChanges(before, data);
     save();
     for (const l of listeners) l();
   }
@@ -222,7 +266,7 @@ Diary:
 
   DM.store = {
     KEY, SCHEMA, APP_VERSION, DEFAULT_SETTINGS, DEFAULT_PROMPTS,
-    load, save, commit, onChange, upsert, remove, restoreJSON, snapshots,
+    load, save, commit, onChange, replaceMerged, ARRAYS, MAPS, migrate, upsert, remove, restoreJSON, snapshots,
     exportJSON, parseImport, importData, resetAll, usageBytes,
     get data() { return data; },
     get ok() { return storageOK; },

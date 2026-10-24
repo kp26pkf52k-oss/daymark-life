@@ -159,7 +159,7 @@ i.dot { margin-right: 6px; vertical-align: 0; }
 label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: .85rem; color: var(--ink-2); }
 
 /* ---------- 入力 ---------- */
-input[type=text], input[type=search], input[type=url], input[type=number], input[type=date], input[type=time], select, textarea {
+input[type=text], input[type=search], input[type=url], input[type=password], input[type=number], input[type=date], input[type=time], select, textarea {
   width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: var(--r-s); background: var(--surface); font-size: 16px; /* iOSでズームしない大きさ */ }
 input[type=date], input[type=time] { -webkit-appearance: none; appearance: none; }
 textarea { resize: vertical; line-height: 1.6; }

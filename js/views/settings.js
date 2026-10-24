@@ -35,6 +35,54 @@
     </ul>`;
   }
 
+  function syncCard() {
+    const c = DM.sync.config();
+    const st = DM.sync.state;
+    return `<section class="card" id="sync">
+      <h2>スマホとパソコンの同期</h2>
+      ${c ? `<p class="kpi-line">${st.lastError ? `<span class="warn">同期できていません</span>` : '同期は有効です'}<span class="sep">·</span>最終同期 ${c.lastSync ? `${DM.fmtDate(c.lastSync.slice(0, 10))} ${new Date(c.lastSync).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })}` : 'まだ'}</p>
+        ${st.lastError ? `<div class="notice">${esc(st.lastError)}</div>` : ''}
+        <p class="f-hint">保管場所：${esc(c.owner)}/${esc(c.repo)} の ${'daymark-data.json'}${c.pass ? '（合言葉で暗号化）' : '（暗号化なし）'}。記録したあと数秒で、またサイトを開いたときに自動で同期します。</p>
+        <div class="btn-row"><button type="button" class="btn primary" data-act="syncNow">今すぐ同期</button><button type="button" class="btn ghost" data-act="syncSetup">設定を変更</button><button type="button" class="btn danger ghost" data-act="syncOff">この端末の同期をやめる</button></div>`
+      : `<p class="muted">いまは記録がこの端末の中にしかありません。自分のGitHubの<b>非公開</b>リポジトリを保管場所にすると、スマホとパソコンで同じ記録を使えます（無料）。</p>
+        <details><summary>準備の手順（最初の1回だけ・パソコン推奨）</summary><ol class="steps">
+          <li><a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a> で、名前 <code>daymark-data</code>、<b>Private</b> を選んで作成する（README等のチェックは不要）。</li>
+          <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">トークンの作成画面</a>（GitHub の Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token）を開く。</li>
+          <li>Repository access で「Only select repositories」→ <code>daymark-data</code> だけを選ぶ。Permissions → Repository permissions → <b>Contents</b> を「Read and write」にする。有効期限を決めて作成し、表示されたトークン（github_pat_…）をコピーする。</li>
+          <li>下の「同期を設定」に貼り付ける。スマホとパソコンの両方で同じ設定をする。</li>
+        </ol></details>
+        <div class="btn-row"><button type="button" class="btn primary" data-act="syncSetup">同期を設定</button></div>`}
+      <p class="f-hint">同期を設定すると、記録がこのリポジトリに保存されます（GitHubのサーバーに送信されます）。合言葉を設定すると、送る前にこの端末で暗号化します。トークンと合言葉はこの端末にだけ保存され、バックアップには含まれません。合言葉を忘れると同期データは読めなくなります（各端末の記録は残ります）。</p>
+    </section>`;
+  }
+  DM.actions.syncNow = () => DM.sync.now({ toast: true }).then(() => DM.render());
+  DM.actions.syncOff = async () => {
+    if (!(await DM.confirm('この端末の同期を止めますか？　この端末の記録とGitHub上のデータはどちらも残ります。', { ok: '止める' }))) return;
+    DM.sync.setConfig(null); DM.sync.state.lastError = ''; DM.render();
+  };
+  DM.actions.syncSetup = () => {
+    const c = DM.sync.config() || {};
+    const owner = c.owner || (/\.github\.io$/.test(location.hostname) ? location.hostname.split('.')[0] : '');
+    DM.openForm({
+      title: '同期を設定', autofocus: false,
+      values: { owner, repo: c.repo || 'daymark-data', branch: c.branch || 'main', token: c.token || '', pass: c.pass || '' },
+      fields: [
+        { key: 'owner', label: 'GitHubのユーザー名', type: 'text', required: true, half: true },
+        { key: 'repo', label: 'リポジトリ名（非公開）', type: 'text', required: true, half: true },
+        { key: 'token', label: 'アクセストークン（github_pat_…）', type: 'password', required: true },
+        { key: 'pass', label: '合言葉（任意・暗号化する場合。全端末で同じものを入力）', type: 'password' },
+        { key: 'branch', label: 'ブランチ', type: 'text' },
+        { key: 'h', type: 'html', html: '<p class="f-hint">保存するとすぐに同期します。すでにGitHub上にデータがあれば、この端末の記録と統合されます（どちらの記録も残ります）。</p>' },
+      ],
+      saveLabel: '保存して同期',
+      onSave: (x) => {
+        if (!/^[A-Za-z0-9-]+$/.test(x.owner.trim()) || !/^[A-Za-z0-9._-]+$/.test(x.repo.trim())) return 'ユーザー名・リポジトリ名に使えない文字が含まれています';
+        DM.sync.setConfig({ owner: x.owner.trim(), repo: x.repo.trim(), branch: (x.branch || 'main').trim(), token: x.token.trim(), pass: x.pass || '', lastSync: c.lastSync || '' });
+        DM.sync.now({ toast: true }).then(() => DM.render());
+      },
+    });
+  };
+
   DM.views.settings = {
     title: '設定・データ',
     render() {
@@ -63,6 +111,8 @@
         <div class="notice">iPhoneのSafariでは、ホーム画面に追加していないサイトの保存データが、しばらく（7日程度）そのサイトを開かないと削除されることがあります（WebKitの仕様）。「共有」→「ホーム画面に追加」から起動し、定期的に書き出してください。</div>
       </section>
       </div>
+
+      ${syncCard()}
 
       <div class="grid-2">
       <section class="card">
@@ -176,7 +226,7 @@
     DM.store.restoreJSON(j); localStorage.removeItem('daymark.beforeImport'); DM.toast('戻しました');
   };
   DM.actions.resetAll = async () => {
-    if (!(await DM.confirm('すべての記録と設定を削除します。先にバックアップを書き出すことをおすすめします。', { danger: true, ok: '次へ' }))) return;
+    if (!(await DM.confirm('すべての記録と設定を削除します。先にバックアップを書き出すことをおすすめします。' + (DM.sync.enabled() ? '\n\n同期が有効なため、同期している他の端末からも削除されます。この端末だけをやり直したい場合は、先に「この端末の同期をやめる」を押してください。' : ''), { danger: true, ok: '次へ' }))) return;
     if (!(await DM.confirm('本当に削除しますか？', { danger: true, ok: 'すべて削除' }))) return;
     DM.store.resetAll(); DM.toast('削除しました（直前の状態は「復元」から一度だけ戻せます）');
   };

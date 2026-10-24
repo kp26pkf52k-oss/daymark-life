@@ -98,7 +98,7 @@
       case 'number':
         input = `<input id="${id}" type="number" inputmode="decimal" data-key="${f.key}" value="${esc(v ?? '')}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} step="${f.step || 'any'}"${ph}>`; break;
       default:
-        input = `<input id="${id}" type="${f.type || 'text'}" data-key="${f.key}" value="${esc(v ?? '')}"${ph} ${f.type === 'text' || !f.type ? 'autocomplete="off"' : ''}>`;
+        input = `<input id="${id}" type="${f.type || 'text'}" data-key="${f.key}" value="${esc(v ?? '')}"${ph} ${f.type === 'text' || !f.type ? 'autocomplete="off"' : f.type === 'password' ? 'autocomplete="off"' : ''}>`;
     }
     return `<div class="field ${f.half ? 'half' : ''}" data-field="${f.key}">${lab}${input}${hint}</div>`;
   }

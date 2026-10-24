@@ -6,6 +6,8 @@
 
 - データはすべて**この端末のブラウザ内（localStorage）にのみ保存**し、外部サーバーへは送信しない。
   例外は研究→文献の「DOIから書誌情報を自動入力」で、ボタンを押したときだけ**DOIの文字列のみ**をCrossref（api.crossref.org）に送る。
+- **端末間の同期（任意）**：設定・データで同期を設定した端末だけ、自分のGitHubの**非公開**リポジトリ（例：`daymark-data`）の
+  `daymark-data.json` に記録を保存・統合する。合言葉を設定すると端末内で暗号化（AES-GCM、鍵はPBKDF2-SHA256・21万回）してから送る。
 - アカウント登録・外部API・有料サービスは不要。AI添削・音声会話は**このサイトには無く**、
   ChatGPT等へのリンクとコピー用プロンプトで連携する。
 - 日付は日本時間（Asia/Tokyo）で扱う。
@@ -52,7 +54,15 @@ Settings → Pages → 「Deploy from a branch」で公開する（記録デー�
 https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/ ）。
 ただし端末の故障・機種変更・ブラウザのデータ消去では消えるため、書き出しによるバックアップは必須。
 
-端末間の自動同期はない（サーバーを持たない設計のため）。端末を移るときは書き出し→読み込みを使う。
+### スマホとパソコンで同じ記録を使う（同期）
+
+1. GitHubで非公開リポジトリ `daymark-data` を作る（Private）。
+2. Fine-grained personal access token を作る：対象リポジトリは `daymark-data` だけ、権限は Contents: Read and write。
+3. 各端末で「設定・データ」→「同期を設定」に、ユーザー名・リポジトリ名・トークン（・任意で合言葉）を入れる。
+
+以後、記録の3秒後・サイトを開いたとき・画面に戻ったときに自動で同期する。統合は記録ごとに行い、
+両方で同じ記録を編集した場合は後から編集した方を残す。削除も反映される（「元に戻す」も反映される）。
+同期をやめても各端末の記録は残る。同期はバックアップの代わりにもなるが、念のため書き出しも時々行う。
 
 ## 変更・修正のしくみ
 
@@ -63,7 +73,7 @@ https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/ ）。
 - すべての記録の編集・削除（削除直後は元に戻せる）、自動控えからの復元、直前の読み込みの取り消し
 
 ### コードを改修するとき（Claude Code 等に依頼する場合も同じ）
-1. 変更は小さく分けて行い、`node tests/e2e.js` を実行して**すべての確認に成功**することを確かめる
+1. 変更は小さく分けて行い、`node tests/e2e.js` と `node tests/sync.js` を実行して**すべての確認に成功**することを確かめる
    （iPhone相当の画面で全ページを操作し、追加・編集・削除・元に戻す・再読み込み後の保持・書き出し/読み込みを検証する。要 Playwright）。
 2. **保存データの形を変えるとき**は `js/store.js` の `SCHEMA` を1つ上げ、`MIGRATIONS` に古い形からの変換を書く。
    既存の記録は読み込み時に自動変換される。項目を「足すだけ」なら `emptyData()`／`DEFAULT_SETTINGS` に既定値を足せば
@@ -78,7 +88,8 @@ https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/ ）。
 index.html            画面の土台（スクリプトの読み込み順に意味がある）
 css/app.css           見た目（色はすべて先頭の変数。ダークモードも同じ場所）
 js/util.js            日付（日本時間）・書式・統計の小道具
-js/store.js           保存・スキーマ移行・書き出し/読み込み・自動控え
+js/store.js           保存・スキーマ移行・変更の記録（同期用）・書き出し/読み込み・自動控え
+js/sync.js            端末間の同期（GitHub API・記録ごとの統合・暗号化）
 js/model.js           集計（記録のない日を0にしない）、コンディション項目の定義、目標判定
 js/charts.js          SVGグラフ（折れ線・積み上げ棒・散布図・割合・実施カレンダー）
 js/ui.js              シート・フォーム部品（VASスライダー等）・トースト・確認
@@ -88,6 +99,7 @@ js/app.js             画面切り替え（#/画面名?パラメータ）・ナ�
 js/vendor/            同梱ライブラリ（PptxGenJS 3.12.0・MITライセンス。スライド作成時だけ読み込む）
 sw.js                 オフライン対応
 tests/e2e.js          動作確認テスト
+tests/sync.js         同期のテスト（GitHubを模擬した2台の端末）
 tools/build-standalone.js  1ファイル版（dist/daymark-life.html）を作る
 ```
 

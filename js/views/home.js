@@ -110,7 +110,10 @@
     const out = [];
     const hasData = d.logs.length + Object.keys(d.conditions).length + d.events.length > 0;
     const last = d.settings.lastBackupAt;
-    if (hasData && (!last || DM.diffDays(last.slice(0, 10), DM.today()) >= 7)) {
+    const sc = DM.sync.config();
+    if (sc && DM.sync.state.lastError) out.push(`<div class="notice">端末間の同期ができていません：${DM.esc(DM.sync.state.lastError)} <a href="#/settings">設定を確認</a></div>`);
+    const synced = sc && sc.lastSync && DM.diffDays(sc.lastSync.slice(0, 10), DM.today()) < 7;
+    if (hasData && !synced && (!last || DM.diffDays(last.slice(0, 10), DM.today()) >= 7)) {
       out.push(`<div class="notice">記録はこの端末のブラウザ内にだけ保存されています。${last ? `最後のバックアップは ${DM.fmtDate(last.slice(0, 10))}。` : 'まだバックアップしていません。'}
         <a href="#/settings">バックアップする</a></div>`);
     }
