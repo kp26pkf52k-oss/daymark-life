@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DAYMARK LIFE</title>
+  <meta name="description" content="研究と生活の記録・振り返りのための個人用サイト（データはこの端末内にのみ保存）">
+  <meta name="theme-color" content="#f6f5f2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DAYMARK">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="referrer" content="no-referrer">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app"></div>
+  <noscript>このサイトを使うにはJavaScriptを有効にしてください。</noscript>
+  <!-- 読み込み順に意味がある：util → store → model → charts → ui → forms → 各画面 → app -->
+  <script src="js/util.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/forms.js"></script>
+  <script src="js/views/home.js"></script>
+  <script src="js/views/calendar.js"></script>
+  <script src="js/views/english.js"></script>
+  <script src="js/views/research.js"></script>
+  <script src="js/views/condition.js"></script>
+  <script src="js/views/exercise.js"></script>
+  <script src="js/views/analysis.js"></script>
+  <script src="js/views/goals.js"></script>
+  <script src="js/views/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
