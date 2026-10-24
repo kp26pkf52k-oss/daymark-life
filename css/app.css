@@ -443,3 +443,17 @@ textarea.prompt-edit { font-family: var(--font-en); font-size: 14px; line-height
 .corr .from { color: var(--danger); }
 .corr .to { color: var(--good); font-weight: 600; }
 ol.utter { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; font-size: .9rem; }
+
+/* 文献 */
+.paper-list { display: grid; }
+.paper { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.paper:last-child { border-bottom: 0; }
+.paper-pick { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); flex: none; }
+.paper-main { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.paper-head { border: 0; background: none; padding: 0; text-align: left; display: grid; gap: 3px; }
+.paper-head b { font-size: .94rem; line-height: 1.45; overflow-wrap: anywhere; }
+.paper-body { display: grid; gap: 8px; background: var(--sunken); border-radius: var(--r-s); padding: 10px 12px; }
+.sum-row { display: grid; grid-template-columns: 5.2em 1fr; gap: 8px; font-size: .9rem; }
+.sum-row .label-s { margin: 2px 0 0; }
+.cite { font-size: .85rem; color: var(--ink-2); overflow-wrap: anywhere; border-top: 1px solid var(--line); padding-top: 8px; }
+.sel-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }

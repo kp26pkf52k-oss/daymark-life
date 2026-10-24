@@ -6,7 +6,7 @@
   const KEY = 'daymark.data';
   const SNAP_KEY = 'daymark.snapshots';
   const SCHEMA = 1;
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.3.0';
 
   const DEFAULT_PROMPTS = [
     { id: 'p_daily', scene: '日常', title: '日常会話（ウォームアップ）', text:
@@ -87,6 +87,7 @@ Diary:
     events: [],     // 予定 {id,date,start,end,title,cat,projectId,note,status,logId}
     tasks: [],      // タスク {id,title,cat,priority,date,due,projectId,kind,estMin,note,done,doneAt,createdAt}
     logs: [],       // 実施時間の記録 {id,date,cat,minutes,start,sub,projectId,note,output,rpe,scene,eventId,createdAt}
+    papers: [],     // 文献 {id,doi,url,title,authors:[{family,given}],year,journal,volume,issue,pages,projectId,status,readDate,tags,basis,summary:{purpose,participants,methods,results,implications},note,createdAt}
     projects: [],   // 研究プロジェクト {id,name,goal,deadline,status,progress,note,createdAt}
     goals: [],      // 目標 {id,period:'week'|'month',key,title,metric,target,manualDone,createdAt}
     phrases: [],    // 表現・単語 {id,phrase,meaning,example,scene,weak,box,due,createdAt,lastReviewed}
@@ -109,7 +110,7 @@ Diary:
     const base = emptyData();
     for (const k of Object.keys(base)) if (d[k] == null) d[k] = base[k];
     for (const k of Object.keys(DEFAULT_SETTINGS)) if (d.settings[k] == null) d.settings[k] = structuredClone(DEFAULT_SETTINGS[k]);
-    for (const k of ['events', 'tasks', 'logs', 'projects', 'goals', 'phrases', 'enDiary', 'transcripts', 'talkTopics', 'talkSessions']) if (!Array.isArray(d[k])) d[k] = [];
+    for (const k of ['events', 'tasks', 'logs', 'projects', 'goals', 'phrases', 'enDiary', 'transcripts', 'talkTopics', 'talkSessions', 'papers']) if (!Array.isArray(d[k])) d[k] = [];
     return d;
   }
 

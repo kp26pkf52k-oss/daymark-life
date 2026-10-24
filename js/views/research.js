@@ -89,6 +89,8 @@
       <section class="card"><div class="card-head"><h2>タスク</h2><button type="button" class="btn small primary" data-act="addTask" data-cat="research" data-project-id="${x.id}">＋ タスク</button></div>
         ${tasks.length ? `<div class="task-list">${tasks.map((k) => DM.taskRow(k, { hideCat: true })).join('')}</div>` : '<p class="muted">タスクはありません。</p>'}</section>
       </div>
+      ${(() => { const ps = DM.store.data.papers.filter((q) => q.projectId === x.id); return `<section class="card"><div class="card-head"><h2>関連する文献 <span class="count">${ps.length}</span></h2><button type="button" class="btn small" data-act="go" data-view="research" data-params='${JSON.stringify({ tab: 'papers', pj: x.id })}'>文献一覧で見る</button></div>
+        ${ps.length ? `<ul class="outputs">${ps.map((q) => `<li>${esc(q.title)} <span class="f-hint">${esc([q.year, q.journal].filter(Boolean).join('・'))}</span></li>`).join('')}</ul>` : '<p class="muted">このプロジェクトに関連づけた文献はありません。</p>'}</section>`; })()}
       <section class="card"><div class="card-head"><h2>作業記録</h2><button type="button" class="btn small" data-act="addLog" data-cat="research" data-project-id="${x.id}">＋ 記録</button></div>
         ${logs.length ? `<div class="log-list">${logs.slice(0, 100).map(DM.logRowDated).join('')}</div>` : '<p class="muted">記録はありません。</p>'}</section>`;
   }
@@ -155,12 +157,12 @@
     });
   };
 
-  const TABS = [['overview', '概要'], ['projects', 'プロジェクト'], ['tasks', 'タスク'], ['logs', '時間記録'], ['weekly', '週の振り返り']];
+  const TABS = [['overview', '概要'], ['projects', 'プロジェクト'], ['tasks', 'タスク'], ['papers', '文献'], ['logs', '時間記録'], ['weekly', '週の振り返り']];
   DM.views.research = {
     title: '研究',
     render(p) {
       const tab = p.tab || 'overview';
-      const body = { overview, projects: projectsTab, tasks: tasksTab, logs: logsTab, weekly: (q) => DM.weeklyReview(q.wk || DM.weekKey(DM.today())) }[tab] || overview;
+      const body = { overview, projects: projectsTab, tasks: tasksTab, papers: DM.papersTab, logs: logsTab, weekly: (q) => DM.weeklyReview(q.wk || DM.weekKey(DM.today())) }[tab] || overview;
       return `${DM.seg('tab', TABS, tab)}${body(p)}`;
     },
   };

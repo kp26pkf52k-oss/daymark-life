@@ -28,6 +28,7 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   const BASE = `http://localhost:${server.address().port}/`;
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Tokyo', acceptDownloads: true });
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
   await ctx.addInitScript(() => { window.DM_NO_SW = true; });
   const page = await ctx.newPage();
   const errors = [];
@@ -277,6 +278,73 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   await go('english?tab=talk');
   ok((await page.inputValue('#tk_prompt')).includes('article, tense'), '繰り返した誤りの種類が次の会話プロンプトに入る');
 
+  console.log('文献・引用・要約スライド');
+  await page.route('https://api.crossref.org/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: {
+    DOI: '10.1519/00124278-200102000-00019', title: ['A new approach to monitoring exercise training'],
+    author: [{ given: 'Carl', family: 'Foster' }, { given: 'Jessica A.', family: 'Florhaug' }, { given: 'Jodi', family: 'Franklin' }],
+    issued: { 'date-parts': [[2001, 2]] }, 'container-title': ['Journal of Strength and Conditioning Research'], volume: '15', issue: '1', page: '109-115' } }) }));
+  await go('research?tab=papers');
+  await page.click('[data-act="paperAdd"]');
+  await fill('doi', 'https://doi.org/10.1519/00124278-200102000-00019');
+  await sheet().locator('[data-doi-fetch]').click();
+  await page.waitForTimeout(200);
+  ok((await sheet().locator('[data-key="title"]').inputValue()) === 'A new approach to monitoring exercise training', 'DOIから書誌情報を自動入力できる（Crossrefの応答を模擬）');
+  await sheet().locator('[data-key="projectId"]').selectOption({ index: 1 });
+  await fill('tagsText', 'sRPE, 負荷');
+  await save();
+  d = await data();
+  ok(d.papers.length === 1 && d.papers[0].doi === '10.1519/00124278-200102000-00019' && d.papers[0].authors.length === 3 && d.papers[0].tags.length === 2, '文献を保存できる（DOIの正規化・著者・タグ）');
+  await page.click('[data-act="paperOpen"]');
+  const cite = await page.textContent('.cite');
+  ok(cite === 'Foster, C., Florhaug, J. A., & Franklin, J. (2001). A new approach to monitoring exercise training. Journal of Strength and Conditioning Research, 15(1), 109–115. https://doi.org/10.1519/00124278-200102000-00019', 'APA第7版の形式で引用を作る');
+  await page.click('[data-act="paperPaste"]');
+  await sheet().locator('#ps_text').fill('```json\n{"title":"A new approach","purpose":"セッションRPE法の妥当性を検討すること。","participants":"記載なし","methods":"運動中の心拍数に基づく負荷とセッションRPEを比較した。","results":"両者は関連していた。","implications":"セッションRPEは簡便な負荷の指標として使える可能性がある。","basis":"abstract"}\n```');
+  await sheet().locator('[data-ok]').click();
+  await page.waitForTimeout(100);
+  ok((await sheet().locator('[data-key="purpose"]').inputValue()).startsWith('セッションRPE法'), '貼り付けた要約が編集画面に入る');
+  await save();
+  d = await data();
+  ok(d.papers[0].summary.results === '両者は関連していた。' && d.papers[0].basis === 'abstract', '要約と根拠（抄録のみ）を保存できる');
+  await page.click('[data-act="paperAdd"]');
+  await fill('title', '野球投手の疲労に関する研究');
+  await fill('authorsText', '山田 太郎');
+  await fill('year', '2024');
+  await chip('status', '未読');
+  await save();
+  await page.selectOption('[data-act-change="past"]', 'toread');
+  await page.waitForTimeout(100);
+  ok(await page.locator('.paper').count() === 1, '状態で絞り込める');
+  await page.selectOption('[data-act-change="past"]', '');
+  await page.waitForTimeout(100);
+  const [ris] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="paperRIS"]')]);
+  const risFile = path.join(os.tmpdir(), 'daymark-e2e.ris'); await ris.saveAs(risFile);
+  const risText = fs.readFileSync(risFile, 'utf8');
+  ok((risText.match(/^TY  - JOUR/gm) || []).length === 2 && risText.includes('AU  - Foster, Carl') && risText.includes('SP  - 109'), 'RISで書き出せる');
+  await page.locator('.paper', { hasText: 'A new approach' }).locator('.paper-pick').check();
+  await page.waitForTimeout(100);
+  const [deck] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('[data-act="paperDeck"]')]);
+  const deckFile = path.join(os.tmpdir(), 'daymark-e2e.pptx'); await deck.saveAs(deckFile);
+  process.env.DECK_FILE = deckFile;
+  const { execFileSync } = require('child_process');
+  const deckText = execFileSync('python3', ['-c', `
+import sys
+from pptx import Presentation
+p = Presentation(sys.argv[1])
+out = []
+for s in p.slides:
+    for sh in s.shapes:
+        if sh.has_text_frame: out.append(sh.text_frame.text)
+        if sh.has_table:
+            for r in sh.table.rows: out.append(' | '.join(c.text for c in r.cells))
+print(len(p.slides)); print('\\n'.join(out))
+`, deckFile]).toString();
+  ok(deckText.split('\n')[0] === '3', '選択した文献で表紙・要約・引用文献の3枚のスライドができる');
+  ok(deckText.includes('目的 | セッションRPE法の妥当性を検討すること。') && deckText.includes('主な結果 | 両者は関連していた。'), 'スライドに目的・主な結果などの一文要約が入る');
+  ok(deckText.includes('要約の根拠：抄録のみ'), 'スライドに要約の根拠が入る');
+  await go('research?tab=projects');
+  await page.click('[data-act="openProject"]');
+  ok((await page.textContent('#view')).includes('A new approach to monitoring exercise training'), 'プロジェクトの画面に関連する文献が出る');
+
   console.log('分析');
   for (const p of ['4w', '12w', '6m']) {
     await go('analysis?p=' + p);
@@ -315,11 +383,11 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓ ' + msg); else { failur
   await sheet().locator('[data-yes]').click();
   await page.waitForTimeout(150);
   d = await data();
-  ok(d.logs.length === 4 && d.talkSessions.length === 2 && d.transcripts.length === 1 && d.talkTopics.length === 1 && d.enDiary.length === 1 && d.settings.categories.find((x) => x.id === 'life').name === '生活', '書き出したファイルから復元できる');
+  ok(d.logs.length === 4 && d.talkSessions.length === 2 && d.papers.length === 2 && d.transcripts.length === 1 && d.talkTopics.length === 1 && d.enDiary.length === 1 && d.settings.categories.find((x) => x.id === 'life').name === '生活', '書き出したファイルから復元できる');
 
   console.log('全ページ表示（PC幅を含む）');
   const routes = ['home', 'calendar', 'calendar?v=week', 'calendar?v=month', 'calendar?v=tasks', 'english', 'english?tab=logs', 'english?tab=diary', 'english?tab=transcript', 'english?tab=phrases', 'english?tab=review', 'english?tab=talk', 'english?tab=talkeval',
-    'research', 'research?tab=projects', 'research?tab=tasks', 'research?tab=logs', 'research?tab=weekly', 'condition', 'exercise', 'analysis', 'goals', 'settings', 'menu'];
+    'research', 'research?tab=projects', 'research?tab=tasks', 'research?tab=papers', 'research?tab=logs', 'research?tab=weekly', 'condition', 'exercise', 'analysis', 'goals', 'settings', 'menu'];
   for (const vp of [{ width: 390, height: 844 }, { width: 1280, height: 860 }]) {
     await page.setViewportSize(vp);
     for (const r of routes) {
